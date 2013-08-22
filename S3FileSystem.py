@@ -2,6 +2,7 @@ import boto
 from pyftpdlib.filesystems import AbstractedFS
 
 import time
+import datetime
 import os
 
 class S3FileSystem(AbstractedFS):
@@ -40,9 +41,10 @@ class S3FileSystem(AbstractedFS):
 
     def _gen_listing(self, key_path, result_set, depth=0):
         if isinstance(result_set[0], boto.s3.bucket.Bucket):
-            return map(lambda b: ('dir', b.name), result_set)
+            return map(lambda b: ('dir', 0, None, b.name), result_set)
         elif isinstance(result_set[0], boto.s3.key.Key):
             listing = []
+            listing_names = []
             for key in result_set:
                 if not key.name.startswith(key_path):
                     continue
@@ -53,12 +55,16 @@ class S3FileSystem(AbstractedFS):
                 except IndexError:
                     continue
                 else:
+                    dt_modified = key.last_modified
+
                     if key.name.count('/') > depth:
-                        if ('dir', name) not in listing:
-                            listing.append(('dir', name))
+                        if name not in listing_names:
+                            listing.append(('dir', 0, dt_modified, name))
+                            listing_names.append(name)
                     else:
-                        if ('file', name) not in listing:
-                            listing.append(('file', name))
+                        if name not in listing_names:
+                            listing.append(('file', key.size, dt_modified, name))
+                            listing_names.append(name)
 
             return listing
         else:
@@ -127,28 +133,54 @@ class S3FileSystem(AbstractedFS):
     def format_list(self, basedir, listing, ignore_err=True):
         print "request for ls"
         for basename in listing:
-            ft, name = basename
+            ft, size, last_modified, name = basename
+            print name, last_modified
+            last_modified = _format_lm(last_modified, form="ls")
+
             if ft == 'dir':
-                size = 0
                 perm = "rwxrwxrwx"
                 t = 'd'
             else:
-                size = 0
                 perm = "r-xr-xr-x"
                 t = '-'
 
-            line = "%s%s\t1\towner\tgroup\t%s\tSep 02 18:23\t%s\r\n" % (t, perm, size, name)
+            line = "%s%s\t1\towner\tgroup\t%s\t%s\t%s\r\n" % (t, perm, size, last_modified, name)
             yield line.encode("utf8", self.cmd_channel.unicode_errors)
 
     def format_mlsx(self, basedir, listing, perms, facts, ignore_err=True):
         print "request for mlsx"
         for basename in listing:
-            ft, name = basename
+            ft, size, last_modified, name = basename
+            last_modified = _format_lm(last_modified, form="mlsx")
+
             if ft == 'dir':
-                size = 0
                 perm = 'el'
             else:
                 perm = 'r'
-            line = "type=%s;size=0;perm=%s; %s\r\n" % (ft, perm, name)
+            line = "type=%s;size=%d;perm=%s;modify=%s %s\r\n" % (ft, size, perm, last_modified, name)
             yield line.encode("utf8", self.cmd_channel.unicode_errors)
 
+
+
+def _format_lm(last_modified, form="object"):
+    if last_modified is None:
+        dt_modified = datetime.datetime(1970, 1, 1)
+    else:
+        try:
+            #this is the format used when you use get_key()
+            dt_modified = datetime.datetime.strptime(last_modified, '%a, %d %b %Y %H:%M:%S %Z')
+        except ValueError:
+            #this is the format used when you use get_all_keys()
+            dt_modified = datetime.datetime.strptime(last_modified, '%Y-%m-%dT%H:%M:%S.000Z')
+        except:
+            raise
+
+    if form == "object":
+        return dt_modified
+    elif form == "ls":
+        if (datetime.datetime.now() - dt_modified).days < 180:
+            return dt_modified.strftime("%b %d %H:%M")
+        else:
+            return dt_modified.strftime("%b %d %Y")
+    else:
+        return dt_modified.strftime("%Y%m%d%H%M%S")
