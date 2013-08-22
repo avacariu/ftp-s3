@@ -4,6 +4,8 @@ from pyftpdlib.filesystems import AbstractedFS
 import time
 import datetime
 import os
+import urllib
+import uuid
 
 class S3FileSystem(AbstractedFS):
     def __init__(self, *args, **kwargs):
@@ -15,9 +17,6 @@ class S3FileSystem(AbstractedFS):
         return path
 
     def open(self, filename, mode):
-        file_wrapper = self.mkstemp()
-        fd = file_wrapper.file
-
         full_path = self.ftp2fs(filename)
         bucket_name = full_path.split('/')[1]
 
@@ -27,12 +26,20 @@ class S3FileSystem(AbstractedFS):
             raise # TODO: Raise a proper exception here
 
         key_path = full_path[2 + len(bucket_name):]
-
         key = bucket.get_key(key_path)
-        fd.write(key.read())
-        fd.close()
+        
+        # The timeout for the url that is generated to allow direct downloads
+        # of large files.
+        # This is calculated based on dialup speeds + 60 secs for overhead
+        expires_in = key.size / 7 + 60 
 
-        return open(file_wrapper.name, 'rb')
+        fd = urllib.urlopen(key.generate_url(expires_in))
+
+        # needed to be more file-like for the close functions of S3FTPHandler
+        fd.closed = False
+        fd.name = str(uuid.uuid4())
+
+        return fd
 
     def chdir(self, path):
         assert isinstance(path, unicode), path
