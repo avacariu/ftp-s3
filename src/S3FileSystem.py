@@ -121,7 +121,8 @@ class S3FileSystem(AbstractedFS):
 
             if len(path.split('/')) > 3:
                 key = path[2 + len(bucket_name) :]
-                if key + '/' not in map(lambda k: k.name, bucket.get_all_keys()):
+                if not any(map(lambda k: k.name.startswith(key+'/'),
+                                bucket.get_all_keys())):
                     return False
 
             return True
@@ -131,10 +132,8 @@ class S3FileSystem(AbstractedFS):
 
 
     def format_list(self, basedir, listing, ignore_err=True):
-        print "request for ls"
         for basename in listing:
             ft, size, last_modified, name = basename
-            print name, last_modified
             last_modified = _format_lm(last_modified, form="ls")
 
             if ft == 'dir':
@@ -148,7 +147,6 @@ class S3FileSystem(AbstractedFS):
             yield line.encode("utf8", self.cmd_channel.unicode_errors)
 
     def format_mlsx(self, basedir, listing, perms, facts, ignore_err=True):
-        print "request for mlsx"
         for basename in listing:
             ft, size, last_modified, name = basename
             last_modified = _format_lm(last_modified, form="mlsx")
