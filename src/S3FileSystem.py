@@ -1,8 +1,8 @@
 import boto
 from pyftpdlib.filesystems import AbstractedFS
 
-import time
-import datetime
+from utils import reformat_lm
+
 import os
 import urllib
 import uuid
@@ -47,6 +47,9 @@ class S3FileSystem(AbstractedFS):
         self._cwd = self.fs2ftp(path)
 
     def _gen_listing(self, key_path, result_set, depth=0):
+        """Generate a list of (dir|file, size, timestamp, name) tuples
+        to be used by format_list or format_mlsx.
+        """
         if isinstance(result_set[0], boto.s3.bucket.Bucket):
             return map(lambda b: ('dir', 0, None, b.name), result_set)
         elif isinstance(result_set[0], boto.s3.key.Key):
@@ -141,7 +144,7 @@ class S3FileSystem(AbstractedFS):
     def format_list(self, basedir, listing, ignore_err=True):
         for basename in listing:
             ft, size, last_modified, name = basename
-            last_modified = _format_lm(last_modified, form="ls")
+            last_modified = reformat_lm(last_modified, form="ls")
 
             if ft == 'dir':
                 perm = "rwxrwxrwx"
@@ -156,7 +159,7 @@ class S3FileSystem(AbstractedFS):
     def format_mlsx(self, basedir, listing, perms, facts, ignore_err=True):
         for basename in listing:
             ft, size, last_modified, name = basename
-            last_modified = _format_lm(last_modified, form="mlsx")
+            last_modified = reformat_lm(last_modified, form="mlsx")
 
             if ft == 'dir':
                 perm = 'el'
@@ -164,28 +167,3 @@ class S3FileSystem(AbstractedFS):
                 perm = 'r'
             line = "type=%s;size=%d;perm=%s;modify=%s %s\r\n" % (ft, size, perm, last_modified, name)
             yield line.encode("utf8", self.cmd_channel.unicode_errors)
-
-
-
-def _format_lm(last_modified, form="object"):
-    if last_modified is None:
-        dt_modified = datetime.datetime(1970, 1, 1)
-    else:
-        try:
-            #this is the format used when you use get_key()
-            dt_modified = datetime.datetime.strptime(last_modified, '%a, %d %b %Y %H:%M:%S %Z')
-        except ValueError:
-            #this is the format used when you use get_all_keys()
-            dt_modified = datetime.datetime.strptime(last_modified, '%Y-%m-%dT%H:%M:%S.000Z')
-        except:
-            raise
-
-    if form == "object":
-        return dt_modified
-    elif form == "ls":
-        if (datetime.datetime.now() - dt_modified).days < 180:
-            return dt_modified.strftime("%b %d %H:%M")
-        else:
-            return dt_modified.strftime("%b %d %Y")
-    else:
-        return dt_modified.strftime("%Y%m%d%H%M%S")
