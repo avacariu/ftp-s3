@@ -1,5 +1,5 @@
 import boto
-from pyftpdlib.filesystems import AbstractedFS
+from pyftpdlib.filesystems import AbstractedFS, FilesystemError
 
 from utils import reformat_lm
 
@@ -18,6 +18,9 @@ class S3FileSystem(AbstractedFS):
 
     def open(self, filename, mode):
         full_path = self.ftp2fs(filename)
+        if self.isdir(full_path):
+            raise FilesystemError("Is a directory")
+
         bucket_name = full_path.split('/')[1]
 
         try:
