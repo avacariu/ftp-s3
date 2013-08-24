@@ -8,7 +8,9 @@ as your username and your secret key as your password.
 Usage
 -----
 
-Execute `src/Main.py [port]`
+Execute `run.py [port] [internal]`, where `port` is the port number you want the
+server to run on, and `internal` is the literal string you can use to disable
+masquerading.
 
 
 Notes
