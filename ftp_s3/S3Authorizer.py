@@ -16,5 +16,5 @@ class S3Authorizer(DummyAuthorizer):
             raise AuthenticationFailed
         else:
             if not self.has_user(aws_access_key_id):
-                self.add_user(aws_access_key_id, aws_secret_access_key, u'/', perm="elr")
+                self.add_user(aws_access_key_id, u'', u'/', perm="elr")
             return True

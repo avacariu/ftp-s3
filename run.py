@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 import urllib
 from ftp_s3 import main
