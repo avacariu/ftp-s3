@@ -1,9 +1,9 @@
 FTP frontend for S3
 ===================
 
-This package provides an FTP server based on pyftpdlib. It maps FTP commands to
-S3 API calls. Authentication is done using the USER command with your access key
-as your username and your secret key as your password.
+This package provides an FTP server based on pyftpdlib and boto. It maps FTP
+commands to S3 API calls. Authentication is done using the USER command with
+your access key as your username and your secret key as your password.
 
 Usage
 -----
@@ -11,6 +11,9 @@ Usage
 Execute `run.py [port] [internal]`, where `port` is the port number you want the
 server to run on, and `internal` is the literal string you can use to disable
 masquerading.
+
+`ftp_s3` is a module with `ftp_s3.main.run()` being the function that puts the
+entire thing together and runs the server.
 
 
 Notes
