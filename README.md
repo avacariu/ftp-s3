@@ -29,4 +29,6 @@ Notes
   This is definitely something worth optimizing, possibly by caching the results,
   or relying on the order of the returned keys (which appears alphabetical).
 
+* Permissions aren't properly mapped. PR would be appreciated to fix this!
+
 * Only reading works. Writing has not been implemented yet.
